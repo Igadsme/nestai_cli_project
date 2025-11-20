@@ -1,0 +1,7 @@
+openai>=1.40.0
+flask>=3.0.0
+flask-sqlalchemy>=3.0.0
+flask-limiter>=3.5.0
+argon2-cffi>=23.1.0
+pyjwt>=2.8.0
+pyotp>=2.9.0

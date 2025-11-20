@@ -1,0 +1,10 @@
+{
+  "python.analysis.extraPaths": [
+    "./",
+    "./nestai"
+  ],
+  "python.autoComplete.extraPaths": [
+    "./",
+    "./nestai"
+  ]
+}

@@ -1,0 +1,31 @@
+[project]
+name = "nestai"
+version = "0.3.1"
+description = "NestAI – AI for Secure Code multi-agent CLI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Gad Imani", email = "your_email@example.com" }
+]
+
+dependencies = [
+    "openai>=1.40.0",
+    "flask>=3.0.0",
+    "flask-sqlalchemy>=3.0.0",
+    "flask-limiter>=3.5.0",
+    "argon2-cffi>=23.1.0",
+    "pyjwt>=2.8.0",
+    "pyotp>=2.9.0"
+]
+
+[project.scripts]
+nestai = "nestai.cli:main"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel", "build"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["nestai*"]
