@@ -4,105 +4,47 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
-from nestai.models import AgentResult, call_json_model
+from nestai.models import AgentResult, call_json_model, make_json_safe
 
 
-ATTACK_SIM_SYSTEM_PROMPT = """
+ATTACK_SYSTEM_PROMPT = """
 You are the Attack Simulation Agent.
 
-You conceptually simulate how an attacker might abuse the generated code.
-You DO NOT provide exploit code, only high-level descriptions of risk.
+Perform conceptual, high-level threat modeling:
+- MITRE ATT&CK TTP mapping
+- OWASP Top 10 exploit paths
+- Logical workflow bypasses
+- Replay attacks, session hijacking, token leakage
+- Cryptographic misuse threats
 
-Return ONLY valid JSON with this shape:
-
+Return ONLY JSON:
 {
   "agent_name": "attack_simulation",
   "simulated_attacks": ["string"],
   "weak_points": ["string"],
   "severity": "low|medium|high|critical",
-  "notes": "optional"
+  "notes": "string"
 }
 """
 
 
-def _ui_enhance(parsed: Dict[str, Any]) -> Dict[str, Any]:
-    sev = parsed.get("severity", "low").lower()
-    color_map = {
-        "low": "green",
-        "medium": "yellow",
-        "high": "red",
-        "critical": "bright_red",
-    }
-    parsed["severity_color"] = color_map.get(sev, "yellow")
-    parsed["short_summary"] = f"Attack Simulation: {sev.upper()} RISK"
-    parsed["badge"] = "ATTACK"
-    return parsed
-
-
 class AttackSimulationAgent:
-    """
-    Conceptual threat-modelling agent for the generated code.
-    """
-
-    def run(
-        self,
-        *,
-        original_prompt: str,
-        final_prompt: str,
-        code: str,
-    ) -> AgentResult:
-        lower = code.lower()
-
-        simulated_attacks = []
-        weak_points = []
-
-        if "login" in lower or "authenticate" in lower:
-            simulated_attacks.append(
-                "Automated credential-stuffing attacks against the login endpoint."
-            )
-            weak_points.append(
-                "Lack of rate limiting or account lockout may allow brute-force attempts."
-            )
-
-        if "password" in lower and "bcrypt" not in lower and "argon2" not in lower:
-            simulated_attacks.append(
-                "Database compromise exposes plaintext or weakly protected passwords."
-            )
-            weak_points.append(
-                "Passwords are not strongly hashed before storage."
-            )
-
-        if "execute(" in lower or "select " in lower:
-            simulated_attacks.append(
-                "Attacker submits crafted input to manipulate SQL queries."
-            )
-            weak_points.append(
-                "Potential SQL injection if queries interpolate user input."
-            )
-
-        if not simulated_attacks:
-            simulated_attacks.append(
-                "No obvious high-risk exploit paths identified from the generated code stub."
-            )
-            weak_points.append(
-                "Further manual review and dynamic testing are recommended."
-            )
-
-        severity = "high" if len(simulated_attacks) > 1 else "medium"
-
-        parsed: Dict[str, Any] = {
-            "agent_name": "attack_simulation",
-            "simulated_attacks": simulated_attacks,
-            "weak_points": weak_points,
-            "severity": severity,
-            "notes": "Conceptual simulation only; run full DAST in staging.",
+    def run(self, *, original_prompt: str, final_prompt: str, code: str) -> AgentResult:
+        payload = {
+            "original_prompt": original_prompt,
+            "final_prompt": final_prompt,
+            "generated_code": code[:20000],
         }
 
-        parsed = _ui_enhance(parsed)
+        parsed = call_json_model(ATTACK_SYSTEM_PROMPT, json.dumps(payload))
+        parsed["agent_name"] = "attack_simulation"
+        parsed.setdefault("simulated_attacks", [])
+        parsed.setdefault("weak_points", [])
+        parsed.setdefault("severity", "medium")
 
-        return AgentResult(
-            name="attack_simulation",
-            role="attack",
-            raw=json.dumps(parsed, indent=2),
-            parsed=parsed,
-        )
+        return AgentResult.from_raw_dict({
+            "name": "attack_simulation",
+            "role": "red",
+            "raw": json.dumps(make_json_safe(parsed), indent=2),
+            "parsed": parsed,
+        })

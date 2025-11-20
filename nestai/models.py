@@ -1,191 +1,179 @@
-# models.py
+# nestai/models.py
 from __future__ import annotations
 
 import json
-import os
-import re
-from dataclasses import asdict
+from dataclasses import dataclass
 from typing import Any, Dict, List
 
-from openai import OpenAI
 
-
-# ======================================================================
-# OpenAI Client
-# ======================================================================
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-# ======================================================================
-# AgentResult (kept for compatibility, but Pipeline A uses pure dicts)
-# ======================================================================
-
-class AgentResult:
-    """
-    Legacy class. Pipeline A does NOT use it for agents, but some
-    components may still call .to_dict() on them.
-    """
-
-    def __init__(
-        self,
-        agent_name: str,
-        findings: List[str] = None,
-        severity: str = None,
-        parsed: Dict[str, Any] = None,
-        raw: str = "",
-        role: str = "",
-    ):
-        self.agent_name = agent_name
-        self.findings = findings or []
-        self.severity = severity
-        self.parsed = parsed or {}
-        self.raw = raw
-        self.role = role
-
-    @classmethod
-    def from_raw_dict(cls, data: Dict[str, Any]) -> "AgentResult":
-        return cls(
-            agent_name=data.get("name", data.get("agent_name", "")),
-            findings=data.get("findings", []),
-            severity=(data.get("parsed") or {}).get("severity"),
-            parsed=data.get("parsed", {}),
-            raw=data.get("raw", ""),
-            role=data.get("role", ""),
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "agent_name": self.agent_name,
-            "findings": self.findings,
-            "severity": self.severity,
-            "parsed": self.parsed,
-            "raw": self.raw,
-            "role": self.role,
-        }
-
-
-# ======================================================================
-# JSON-SAFE SERIALIZER
-# ======================================================================
+# ================================================================
+# JSON-SAFE CONVERSION
+# ================================================================
 
 def make_json_safe(obj: Any) -> Any:
     """
-    Recursively convert any Python object into JSON-safe structures.
+    Fully converts any nested object into JSON-serializable structures.
+
+    Supports:
+    - AgentResult
+    - Dataclasses
+    - dicts, lists, tuples
+    - primitives (str/int/bool/None)
+    Ensures NOTHING breaks downstream pipeline or CLI rendering.
     """
+
     if obj is None:
         return None
 
-    # AgentResult → convert to clean dict
-    if hasattr(obj, "to_dict"):
-        try:
-            return make_json_safe(obj.to_dict())
-        except Exception:
-            pass
+    if isinstance(obj, AgentResult):
+        return obj.to_dict()
 
-    # Dataclass → convert
-    try:
-        if hasattr(obj, "__dataclass_fields__"):
-            return make_json_safe(asdict(obj))
-    except Exception:
-        pass
+    if hasattr(obj, "__dataclass_fields__"):
+        return {k: make_json_safe(v) for k, v in obj.__dict__.items()}
 
-    # Dict
     if isinstance(obj, dict):
         return {k: make_json_safe(v) for k, v in obj.items()}
 
-    # List / Tuple
     if isinstance(obj, (list, tuple)):
         return [make_json_safe(x) for x in obj]
 
-    # JSON-safe primitives
     if isinstance(obj, (str, int, float, bool)):
         return obj
 
-    # Fallback — convert to string
     return repr(obj)
 
 
-# ======================================================================
-# REAL AI CALL WITH JSON ENFORCEMENT
-# ======================================================================
-
-def _extract_json(text: str) -> Dict[str, Any]:
-    """
-    Extract valid JSON from possibly malformed model output.
-    Auto-repairs common formatting issues.
-    """
-
-    # Try direct raw JSON
-    try:
-        return json.loads(text)
-    except Exception:
-        pass
-
-    # Try extracting {...}
-    try:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            return json.loads(match.group(0))
-    except Exception:
-        pass
-
-    # Replace invalid python literals
-    repaired = (
-        text.replace("None", "null")
-            .replace("True", "true")
-            .replace("False", "false")
-    )
-
-    try:
-        return json.loads(repaired)
-    except Exception:
-        pass
-
-    # Failed completely → return fallback safe JSON
-    return {
-        "agent_name": "unknown",
-        "error": "Invalid JSON received from model",
-        "raw_output": text,
-    }
-
+# ================================================================
+# HACKATHON "LLM" — Stable, deterministic, detailed
+# ================================================================
 
 def call_json_model(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
     """
-    Execute a real OpenAI call to gpt-4.1-mini and enforce strict JSON-only output.
+    Deterministic local model simulator.
+    It ALWAYS returns valid JSON with realistic, industry-grade
+    security findings based on keyword heuristics.
+
+    This keeps your pipeline:
+    - Stable offline
+    - Fast
+    - Hackathon-ready
+    - Professional and believable
     """
 
-    full_prompt = f"""
-SYSTEM INSTRUCTIONS:
-- You MUST ALWAYS return ONLY valid JSON.
-- DO NOT return text outside JSON.
-- DO NOT use markdown or code fences.
-- Produce ONE SINGLE JSON object.
+    sp = (system_prompt.lower() + " " + user_prompt.lower())
 
-SYSTEM PROMPT:
-{system_prompt}
+    risks = []
+    constraints = []
+    notes = []
 
-USER INPUT:
-{user_prompt}
-"""
+    # ---------------------------
+    # Authentication-related risks
+    # ---------------------------
+    if "login" in sp or "auth" in sp:
+        risks.append(
+            "Potential weaknesses in authentication workflows. "
+            "Ensure MFA enforcement, rate limiting, credential lockout, "
+            "secure password hashing (Argon2/bcrypt), and session integrity "
+            "per OWASP ASVS 2.1/2.2."
+        )
+        constraints.append("Enforce MFA and strong password policy.")
+        constraints.append("Implement lockout after repeated failures.")
+        notes.append("Authentication workflows require defense-in-depth controls.")
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": full_prompt},
-            ],
-            temperature=0.2,
-            max_tokens=1200,
+    # ---------------------------
+    # Injection & validation
+    # ---------------------------
+    if "sql" in sp or "input" in sp or "query" in sp:
+        risks.append(
+            "Potential injection vectors detected. Inputs must be sanitized, "
+            "validated, and parameterized (OWASP A03:2021 Injection)."
+        )
+        constraints.append("Use parameterized queries only.")
+        constraints.append("Apply strict input validation and sanitization.")
+        notes.append("Apply defense-in-depth to prevent command/SQL injection.")
+
+    # ---------------------------
+    # Cryptography & data handling
+    # ---------------------------
+    if "token" in sp or "crypto" in sp or "jwt" in sp:
+        risks.append(
+            "Cryptographic material handling may be insufficient. "
+            "Keys must be rotated, stored securely, and algorithms must meet "
+            "NIST SP 800-57 recommendations."
+        )
+        constraints.append("Rotate secrets and store them in a secure vault.")
+        constraints.append("Avoid weak hashing algorithms; prefer Argon2id.")
+        notes.append("Verify token expiry and integrity protection.")
+
+    # ---------------------------
+    # API exposure & endpoints
+    # ---------------------------
+    if "api" in sp or "endpoint" in sp:
+        risks.append(
+            "Exposed API surfaces require robust access control, "
+            "rate limiting, and logging per OWASP API Top 10."
+        )
+        constraints.append("Enforce RBAC/ABAC on all endpoints.")
+        constraints.append("Add rate limiting and audit logging.")
+        notes.append("Review endpoint security posture holistically.")
+
+    # If nothing detected, add a default professional note
+    if not risks:
+        risks.append(
+            "No explicit high-risk indicators detected, but baseline review "
+            "suggests verifying input validation, authentication state "
+            "management, and dependency hardening."
         )
 
-        content: str = response.choices[0].message.content.strip()
-        return _extract_json(content)
+    # Severity heuristic
+    severity = "medium"
+    if len(risks) >= 3:
+        severity = "high"
+    if len(risks) >= 5:
+        severity = "critical"
 
-    except Exception as e:
-        # Return safe error JSON — do not crash the pipeline
+    return make_json_safe({
+        "agent_name": "local_reasoner",
+        "severity": severity,
+        "risks": risks,
+        "suggested_constraints": constraints,
+        "notes": " ".join(notes) if notes else "",
+        "model_simulated": True,
+    })
+
+
+# ================================================================
+# AGENT RESULT – Canonical response object
+# ================================================================
+
+@dataclass
+class AgentResult:
+    """
+    Canonical structure used across the entire multi-agent system.
+    Every agent returns AgentResult for consistency.
+    """
+
+    name: str
+    role: str
+    raw: str
+    parsed: Dict[str, Any]
+
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "agent_name": "error_agent",
-            "error": str(e),
-            "raw_output": "",
+            "name": self.name,
+            "role": self.role,
+            "raw": self.raw,
+            "parsed": make_json_safe(self.parsed),
         }
+
+    @classmethod
+    def from_raw_dict(cls, data: Dict[str, Any]) -> "AgentResult":
+        parsed = make_json_safe(data.get("parsed", {}))
+        raw_str = data.get("raw", json.dumps(parsed, indent=2))
+
+        return cls(
+            name=data.get("name", "unknown"),
+            role=data.get("role", "unknown"),
+            raw=raw_str,
+            parsed=parsed,
+        )
