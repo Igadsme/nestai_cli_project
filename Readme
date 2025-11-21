@@ -145,6 +145,10 @@ source new_env/bin/activate
 pip install -r requirements.txt
 pip install -e .
 
+Export an API key on you machine: export OPENAI_API_KEY="your-api-key-here"
+Verify it: echo $OPENAI_API_KEY
+
+Then run the pipeline below
 ▶️ Usage
 Basic usage:
 nestai "build a secure login api"
