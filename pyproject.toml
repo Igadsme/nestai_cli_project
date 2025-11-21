@@ -1,42 +1,30 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "nestai"
-version = "0.3.0"
-description = "NestAI – AI-powered secure coding multi-agent pipeline with red/blue-team agents, static analysis, and secure code generation."
-readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "MIT" }
-
+version = "1.0.0"
+description = "NestAI – Secure Multi-Agent Code Security & Generation Pipeline"
 authors = [
-  { name = "Imani L Gad", email = "igad@students.kennesaw.edu" }
+    { name="Gad", email="your-email@example.com" }
 ]
-
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Topic :: Security",
-  "Topic :: Software Development :: Build Tools",
-  "Topic :: Software Development :: Code Generators",
-]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
 
 dependencies = [
-  "rich>=13.7.0",
-  "openai>=1.3.0",
-  "pyyaml>=6.0",
-  "typing-extensions>=4.0.0"
+    "rich>=13.0",
+    "openai>=1.0.0",
+    "httpx",
+    "pydantic",
 ]
 
-# -------------------------------------------------
-# Setuptools package discovery (FIXED)
-# -------------------------------------------------
+# IMPORTANT — include your package folder
 [tool.setuptools]
 packages = ["nestai"]
 
-# Optional: include non-Python files inside your package (if any)
-[tool.setuptools.package-data]
-nestai = ["*.json", "*.txt"]
+# Entry point for CLI command
+[project.scripts]
+nestai = "nestai.cli:main"
+
