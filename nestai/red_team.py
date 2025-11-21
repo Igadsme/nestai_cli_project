@@ -1,144 +1,186 @@
-# nestai/red_team.py
 from __future__ import annotations
 
 import json
-from typing import List, Dict, Any
+from typing import Dict, List
 
-from nestai.models import AgentResult, call_json_model, make_json_safe
+from nestai.models import AgentResult, call_json_model
 
+JSON_STRICT_HEADER = """
+YOU MUST ALWAYS RETURN A VALID JSON OBJECT.
+NEVER return markdown, code fences, or prose outside JSON.
+"""
 
-# ================================================================
-# INDUSTRY-GRADE RED TEAM PROMPTS
-# ================================================================
+RED_TEAM_AGENTS: Dict[str, str] = {
+    "auth_red": f"""
+{JSON_STRICT_HEADER}
 
-# These prompts instruct the local_reasoner to produce detailed,
-# enterprise-quality findings (OWASP, MITRE ATT&CK, NIST, SANS, CWE).
+You are the Authentication & Session Security Red Team Agent.
 
-
-BASE_RED_PROMPT = """
-You are a Senior Application Security Engineer conducting a deep-dive threat
-analysis according to:
-
-- OWASP ASVS 4.0
-- OWASP Top 10 (2021 / 2023)
-- OWASP API Security Top 10
-- MITRE ATT&CK (Enterprise)
-- CWE/SANS Top 25
-- NIST SP 800-53 and 800-63
-
-You MUST return ONLY a JSON object with fields:
-{
-  "agent_name": "string",
+Return JSON:
+{{
+  "agent_name": "auth_red",
   "severity": "low|medium|high|critical",
-  "risks": ["detailed textual explanations"],
-  "suggested_constraints": ["detailed remediation steps"],
-  "notes": "optional deeper analysis"
+  "risks": ["string"],
+  "suggested_constraints": ["string"],
+  "notes": "string"
+}}
+""",
+    "rbac_red": f"""
+{JSON_STRICT_HEADER}
+
+You are the Authorization & RBAC Red Team Agent.
+
+Return JSON:
+{{
+  "agent_name": "rbac_red",
+  "severity": "low|medium|high|critical",
+  "risks": ["string"],
+  "suggested_constraints": ["string"],
+  "notes": "string"
+}}
+""",
+    "injection_red": f"""
+{JSON_STRICT_HEADER}
+
+You are the Injection & Input Validation Red Team Agent.
+
+Return JSON:
+{{
+  "agent_name": "injection_red",
+  "severity": "low|medium|high|critical",
+  "risks": ["string"],
+  "suggested_constraints": ["string"],
+  "notes": "string"
+}}
+""",
+    "crypto_red": f"""
+{JSON_STRICT_HEADER}
+
+You are the Cryptography & Secrets Red Team Agent.
+
+Return JSON:
+{{
+  "agent_name": "crypto_red",
+  "severity": "low|medium|high|critical",
+  "risks": ["string"],
+  "suggested_constraints": ["string"],
+  "notes": "string"
+}}
+""",
+    "logic_red": f"""
+{JSON_STRICT_HEADER}
+
+You are the Business Logic & Abuse Flows Red Team Agent.
+
+Return JSON:
+{{
+  "agent_name": "logic_red",
+  "severity": "low|medium|high|critical",
+  "risks": ["string"],
+  "suggested_constraints": ["string"],
+  "notes": "string"
+}}
+""",
+    "api_red": f"""
+{JSON_STRICT_HEADER}
+
+You are the API Surface & Rate Limiting Red Team Agent.
+
+Return JSON:
+{{
+  "agent_name": "api_red",
+  "severity": "low|medium|high|critical",
+  "risks": ["string"],
+  "suggested_constraints": ["string"],
+  "notes": "string"
+}}
+""",
 }
 
-Make findings DETAILED, INDUSTRY-GRADE, and PROFESSIONAL.
-"""
+MALICIOUS_SYSTEM_PROMPT = f"""
+{JSON_STRICT_HEADER}
 
+You are the Malicious Intent Gate Agent. Detect whether the USER INTENT is malicious.
 
-RED_AGENTS: Dict[str, str] = {
-    "auth_red": BASE_RED_PROMPT + """
-Analyze authentication surfaces, identity verification,
-MFA enforcement, credential workflows, session integrity,
-and user enumeration vectors.
-""",
-
-    "rbac_red": BASE_RED_PROMPT + """
-Analyze authorization posture, RBAC/ABAC enforcement,
-broken access control indicators, privilege escalation risk,
-multi-tenant isolation, horizontal/vertical access control.
-""",
-
-    "injection_red": BASE_RED_PROMPT + """
-Analyze data handling for SQL injection, command injection,
-template injection, path traversal, deserialization attacks,
-and insufficient input validation.
-""",
-
-    "crypto_red": BASE_RED_PROMPT + """
-Analyze cryptographic operations, token signing, secret
-handling, entropy, key rotation, algorithm safety, and secure
-storage of sensitive materials.
-""",
-
-    "logic_red": BASE_RED_PROMPT + """
-Analyze business logic flaws: bypasses, workflow tampering,
-state machine abuse, replay issues, predictable flows, privilege confusion.
-""",
-
-    "api_red": BASE_RED_PROMPT + """
-Analyze API endpoints, request validation, schema enforcement,
-rate limiting, versioning, pagination security, and misuse of HTTP verbs.
-""",
-}
-
-
-MALICIOUS_AGENT_PROMPT = """
-You are the Malicious Intent Detection Agent.
-
-Return ONLY JSON:
-{
+If malicious or clearly abusive (e.g., hacking, exploitation, fraud):
+{{
   "agent_name": "malicious_red",
-  "malicious_agent_blocked": true|false,
-  "reasons": ["detailed"],
-  "notes": "optional"
-}
+  "malicious": true,
+  "malicious_agent_blocked": true,
+  "block_message": "=== MALICIOUS INTENT DETECTED ===",
+  "reasons": ["string"]
+}}
 
-If user intent suggests:
-- exploitation
-- data exfiltration
-- unauthorized access
-- malware creation
-- harmful behavior
-
-…then malicious_agent_blocked MUST be true.
+Else:
+{{
+  "agent_name": "malicious_red",
+  "malicious": false,
+  "malicious_agent_blocked": false,
+  "block_message": "",
+  "reasons": []
+}}
 """
 
 
-# ================================================================
-# INTERNAL NORMALIZATION
-# ================================================================
+def _ui_enhance(parsed: dict, name: str) -> dict:
+    severity = parsed.get("severity", "medium")
 
-def _normalize(system_prompt: str, name: str, user_prompt: str) -> AgentResult:
-    parsed = call_json_model(system_prompt, f"User prompt: {user_prompt}")
-    parsed["agent_name"] = name
+    color_map = {
+        "low": "green",
+        "medium": "yellow",
+        "high": "red",
+        "critical": "bright_red",
+    }
+    parsed["severity"] = severity
+    parsed["severity_color"] = color_map.get(severity, "yellow")
+    parsed["short_summary"] = f"{name.upper()} Risk: {severity.upper()}"
+    parsed["badge"] = "RED"
+    return parsed
 
-    return AgentResult.from_raw_dict({
-        "name": name,
-        "role": "red",
-        "raw": json.dumps(make_json_safe(parsed), indent=2),
-        "parsed": parsed,
-    })
-
-
-# ================================================================
-# RED TEAM CLASS
-# ================================================================
 
 class RedTeam:
-    def __init__(self):
-        self.red_agents = RED_AGENTS
-        self.malicious_prompt = MALICIOUS_AGENT_PROMPT
+    def __init__(self) -> None:
+        self.agent_prompts = RED_TEAM_AGENTS
+        self.malicious_system_prompt = MALICIOUS_SYSTEM_PROMPT
 
     def run_security_agents(self, user_prompt: str) -> List[AgentResult]:
         results: List[AgentResult] = []
-        for name, system_prompt in self.red_agents.items():
-            results.append(_normalize(system_prompt, name, user_prompt))
+
+        for name, system_prompt in self.agent_prompts.items():
+            payload = {
+                "user_prompt": user_prompt,
+                "agent_name": name,
+            }
+            parsed = call_json_model(system_prompt, payload)
+            parsed.setdefault("severity", "medium")
+            parsed.setdefault("risks", [])
+            parsed.setdefault("suggested_constraints", [])
+            parsed.setdefault("notes", "")
+            parsed = _ui_enhance(parsed, name)
+
+            results.append(
+                AgentResult.from_parsed(
+                    name=name,
+                    role="red",
+                    parsed=parsed,
+                )
+            )
+
         return results
 
     def run_malicious_agent(self, user_prompt: str) -> AgentResult:
-        parsed = call_json_model(self.malicious_prompt, f"User prompt: {user_prompt}")
-        parsed["agent_name"] = "malicious_red"
+        payload = {"user_prompt": user_prompt}
+        parsed = call_json_model(self.malicious_system_prompt, payload)
+        parsed.setdefault("malicious", False)
+        parsed.setdefault("malicious_agent_blocked", parsed.get("malicious", False))
+        parsed.setdefault("reasons", [])
+        parsed = _ui_enhance(parsed, "malicious_red")
 
-        return AgentResult.from_raw_dict({
-            "name": "malicious_red",
-            "role": "malicious",
-            "raw": json.dumps(make_json_safe(parsed), indent=2),
-            "parsed": parsed,
-        })
+        return AgentResult.from_parsed(
+            name="malicious_red",
+            role="malicious",
+            parsed=parsed,
+        )
 
     def run_all(self, user_prompt: str) -> List[AgentResult]:
         results = self.run_security_agents(user_prompt)

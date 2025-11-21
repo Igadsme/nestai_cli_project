@@ -1,83 +1,115 @@
-# nestai/static_analysis.py
 from __future__ import annotations
 
 import json
-from typing import Dict, Any
+from dataclasses import dataclass
+from typing import Any, Dict
 
-from nestai.models import AgentResult, call_json_model, make_json_safe
+from nestai.models import AgentResult, call_json_model
 
+JSON_STRICT_HEADER = """
+YOU MUST ALWAYS RETURN A VALID JSON OBJECT.
+NEVER return plain text or markdown.
+Return ONLY a single JSON dictionary.
+"""
 
-STATIC_SYSTEM_PROMPT = """
-You are the Static Analysis + SAST Agent.
+BASE_SYSTEM_PROMPT = f"""
+{JSON_STRICT_HEADER}
 
-Emulate enterprise-grade tooling:
-- Bandit (Python security linter)
-- Semgrep (SAST rules)
-- Pyright (type system issues)
-- Ruff (lint errors)
-- Dependency scanning (SCA)
-- OWASP ASVS
-- CWE weakness catalog
+You are the Static Analysis + SAST Agent in a secure development pipeline.
 
-Return ONLY JSON:
-{
+You DO NOT execute code.
+You emulate:
+- Bandit
+- Semgrep
+- Ruff
+- Pyright
+- SCA / dependency analyzers
+
+Return JSON:
+
+{{
   "agent_name": "static_analysis",
   "scope": "prompt|generated_code",
   "issues": [
-    {
-      "tool": "bandit|semgrep|sca|...",
+    {{
+      "tool": "bandit|semgrep|ruff|pyright|sca|generic",
       "severity": "low|medium|high|critical",
-      "message": "string",
+      "message": "description",
       "file": "string",
       "line": "string",
-      "rule_id": "string"
-    }
+      "rule_id": "B101|SQLI001|..."
+    }}
   ],
-  "summary": "string",
+  "summary": "short summary",
   "overall_risk": "low|medium|high|critical",
   "recommendations": ["string"]
-}
+}}
 """
 
 
-def _build_sast_result(parsed: Dict[str, Any], name: str) -> AgentResult:
-    parsed["agent_name"] = name
+def _ui_enhance(parsed: Dict[str, Any]) -> Dict[str, Any]:
+    severity = parsed.get("overall_risk", "low")
+
+    color_map = {
+        "low": "green",
+        "medium": "yellow",
+        "high": "red",
+        "critical": "bright_red",
+    }
+
+    parsed["overall_risk"] = severity
+    parsed["severity_color"] = color_map.get(severity, "green")
+    parsed["short_summary"] = f"Static Analysis Risk: {severity.upper()}"
+    parsed["badge"] = "STATIC"
+    return parsed
+
+
+def _run_static_model(system_prompt: str, user_payload: Dict[str, Any]) -> Dict[str, Any]:
+    parsed = call_json_model(system_prompt, user_payload)
+
+    parsed.setdefault("agent_name", "static_analysis")
     parsed.setdefault("issues", [])
-    parsed.setdefault("overall_risk", "medium")
+    parsed.setdefault("overall_risk", "low")
     parsed.setdefault("summary", "")
     parsed.setdefault("recommendations", [])
 
-    # Add extra OWASP / CWE aligned recommendations
-    parsed["recommendations"].extend([
-        "Validate all untrusted input using strict schema enforcement.",
-        "Prefer parameterized queries to avoid injection.",
-        "Avoid unsafe deserialization flows.",
-        "Ensure proper access control on all API endpoints.",
-    ])
-
-    return AgentResult.from_raw_dict({
-        "name": name,
-        "role": "red",
-        "raw": json.dumps(make_json_safe(parsed), indent=2),
-        "parsed": parsed,
-    })
+    return _ui_enhance(parsed)
 
 
+@dataclass
 class StaticAnalysisAgent:
     def run_on_prompt(self, user_prompt: str) -> AgentResult:
+        system_prompt = BASE_SYSTEM_PROMPT + "\nYou are analyzing the ORIGINAL USER PROMPT.\n"
         payload = {
-            "context": "original_prompt",
+            "context": "original_user_prompt",
             "prompt_text": user_prompt,
         }
-        parsed = call_json_model(STATIC_SYSTEM_PROMPT, json.dumps(payload))
-        return _build_sast_result(parsed, "static_analysis_prompt")
+        parsed = _run_static_model(system_prompt, payload)
 
-    def run_on_generated_code(self, *, original_prompt: str, final_prompt: str, code: str) -> AgentResult:
+        return AgentResult.from_parsed(
+            name="static_analysis_prompt",
+            role="red",
+            parsed=parsed,
+        )
+
+    def run_on_generated_code(
+        self,
+        *,
+        original_prompt: str,
+        final_prompt: str,
+        code: str,
+    ) -> AgentResult:
+        system_prompt = BASE_SYSTEM_PROMPT + "\nYou are analyzing the AI-GENERATED CODE.\n"
         payload = {
             "context": "generated_code",
             "original_prompt": original_prompt,
             "final_prompt": final_prompt,
             "generated_code": code[:20000],
         }
-        parsed = call_json_model(STATIC_SYSTEM_PROMPT, json.dumps(payload))
-        return _build_sast_result(parsed, "static_analysis_generated")
+        parsed = _run_static_model(system_prompt, payload)
+
+        return AgentResult.from_parsed(
+            name="static_analysis_generated",
+            role="red",
+            parsed=parsed,
+        )

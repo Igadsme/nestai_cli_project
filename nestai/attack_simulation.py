@@ -1,23 +1,21 @@
-# nestai/attack_simulation.py
 from __future__ import annotations
 
 import json
 from typing import Any, Dict
 
-from nestai.models import AgentResult, call_json_model, make_json_safe
+from nestai.models import AgentResult, call_json_model
 
+ATTACK_SIM_PROMPT = """
+YOU ARE THE ATTACK SIMULATION AGENT.
 
-ATTACK_SYSTEM_PROMPT = """
-You are the Attack Simulation Agent.
+Your job:
+- Review the AI-generated code.
+- Conceptually simulate realistic attacker behavior (NO exploit code).
+- Identify exploit paths, insecure flows, or missing protections.
+- Summarize risk and weakest paths.
 
-Perform conceptual, high-level threat modeling:
-- MITRE ATT&CK TTP mapping
-- OWASP Top 10 exploit paths
-- Logical workflow bypasses
-- Replay attacks, session hijacking, token leakage
-- Cryptographic misuse threats
+Return ONLY valid JSON:
 
-Return ONLY JSON:
 {
   "agent_name": "attack_simulation",
   "simulated_attacks": ["string"],
@@ -29,22 +27,28 @@ Return ONLY JSON:
 
 
 class AttackSimulationAgent:
-    def run(self, *, original_prompt: str, final_prompt: str, code: str) -> AgentResult:
-        payload = {
+    def run(
+        self,
+        *,
+        original_prompt: str,
+        final_prompt: str,
+        code: str,
+    ) -> AgentResult:
+        payload: Dict[str, Any] = {
             "original_prompt": original_prompt,
             "final_prompt": final_prompt,
             "generated_code": code[:20000],
         }
 
-        parsed = call_json_model(ATTACK_SYSTEM_PROMPT, json.dumps(payload))
-        parsed["agent_name"] = "attack_simulation"
+        parsed = call_json_model(ATTACK_SIM_PROMPT, payload)
+        parsed.setdefault("agent_name", "attack_simulation")
         parsed.setdefault("simulated_attacks", [])
         parsed.setdefault("weak_points", [])
-        parsed.setdefault("severity", "medium")
+        parsed.setdefault("severity", "low")
+        parsed.setdefault("notes", "")
 
-        return AgentResult.from_raw_dict({
-            "name": "attack_simulation",
-            "role": "red",
-            "raw": json.dumps(make_json_safe(parsed), indent=2),
-            "parsed": parsed,
-        })
+        return AgentResult.from_parsed(
+            name="attack_simulation",
+            role="attack",
+            parsed=parsed,
+        )

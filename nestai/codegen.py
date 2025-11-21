@@ -1,98 +1,54 @@
-# nestai/codegen.py
 from __future__ import annotations
-
-# Tell Pylance to ignore f-string template warnings in this file
-# pyright: reportInvalidStringEscapeSequence=false
-# pyright: reportUndefinedVariable=false
 
 import json
 from textwrap import dedent
-from typing import Any, Dict
-
-try:
-    from openai import OpenAI
-except ImportError:
-    raise RuntimeError(
-        "OpenAI SDK not installed. Run: pip install openai>=1.0.0"
-    )
+from typing import Dict, Any
 
 from nestai.models import call_json_model
 
+SYSTEM_PROMPT = """
+You are the CODEGEN Agent in the NestAI Secure Coding Pipeline.
 
-# ---------------------------------------------------------------------
-# OpenAI client (global, safe)
-# ---------------------------------------------------------------------
-client = OpenAI()   # Uses OPENAI_API_KEY from environment
-
-
-# ---------------------------------------------------------------------
-# SYSTEM PROMPT FOR SECURE CODE GENERATION
-# ---------------------------------------------------------------------
-SYSTEM_PROMPT = dedent("""
-You are the NestAI Secure Code Generation Agent.
+You receive:
+- A FINAL UNIFIED SECURE PROMPT that already includes strict security constraints.
 
 Your job:
-- Produce SECURE production-quality code ONLY.
-- Follow OWASP, CERT, NIST, and industry best practices.
-- Never return explanations.
-- Output ONLY valid JSON of the following schema:
+- Generate secure, production-grade Python code that follows the constraints.
+- Prefer frameworks like FastAPI or Flask with strong security posture.
+- Implement:
+  - input validation
+  - authentication
+  - minimal RBAC
+  - proper error handling
+  - logging hooks (no secrets in logs)
+- NEVER return explanations, only code.
+
+Return ONLY valid JSON:
 
 {
-  "generated_code": "string of python code"
+  "generated_code": "python source code as a single string"
 }
-
-Rules:
-- NO markdown
-- NO comments outside JSON
-- The code must be secure, sanitized, validated, robust.
-- MUST be pure Python unless the prompt explicitly requests another language.
-- Minimize dependencies unless required for security.
-- NEVER output prose explanations.
-- ALWAYS output valid JSON.
-""")
+"""
 
 
-# ---------------------------------------------------------------------
-# generate_code
-# ---------------------------------------------------------------------
 def generate_code(final_prompt: str) -> str:
     """
-    LLM-powered secure code generator using gpt-4.1-mini.
+    Calls OpenAI to generate secure Python code as per the final unified prompt.
 
-    final_prompt is produced by Controller.
-    We call the OpenAI API using a strict JSON response.
+    Requires OPENAI_API_KEY to be set in environment.
     """
-
-    payload = {
-        "final_prompt": final_prompt
+    user_payload: Dict[str, Any] = {
+        "final_secure_prompt": final_prompt,
+        "language": "python",
+        "framework_preference": "FastAPI",
     }
 
-    # Call OpenAI with strict JSON format
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps(payload, indent=2)
-            }
-        ]
-    )
-
-    raw = response.choices[0].message.content
-
-    try:
-        parsed = json.loads(raw)
-    except Exception as e:
-        raise RuntimeError(
-            f"Codegen output was not valid JSON:\n{raw}"
-        ) from e
-
+    parsed = call_json_model(SYSTEM_PROMPT, user_payload)
     code = parsed.get("generated_code", "")
-    if not isinstance(code, str):
-        code = str(code)
 
-    # Strip leading/trailing whitespace
-    return code.strip()
+    if not isinstance(code, str):
+        code = json.dumps(code, indent=2)
+
+    # Clean up leading/trailing whitespace
+    code = dedent(code).strip("\n")
+    return code
