@@ -1,0 +1,209 @@
+🛡️ NestAI – Secure Coding Pipeline
+
+Multi-Agent Security System for Generating Safe, Production-Grade Code Automatically
+
+NestAI is an AI-powered, multi-agent secure coding pipeline that analyzes user prompts, detects security risks, enforces best practices, generates hardened code, and stores complete audit history — all inside an elegant CLI experience.
+
+Built for hackathons, developers, and companies that need security-first code generation.
+
+🚀 Key Features
+🔶 1. Multi-Agent Security Architecture
+
+Each request passes through a coordinated set of agents:
+
+Agent	Purpose
+Red Team Agents	Attack the prompt, identify vulnerabilities, propose constraints
+Blue Team Agents	Defend, reinforce constraints, apply security policies
+Static Analysis Agent	Runs Bandit/Semgrep-style analysis (prompt + code)
+Attack Simulation Agent	Simulates exploit attempts and classifies severity
+Malicious Intent Agent	Detects misuse, blocks dangerous prompts
+Controller Agent	Aggregates constraints and builds a secure final prompt
+Codegen Agent	Generates deterministic, production-grade secure code
+🔶 2. Auto-Expanded, Industry-Grade Findings
+
+All findings are printed automatically, zero keypresses required:
+
+Full Red Team findings per category (auth, rbac, injection, crypto, logic, API, malicious intent)
+
+Static analysis panels:
+
+Prompt Static Analysis
+
+Generated Code Static Analysis
+
+Attack Simulation with severity scoring
+
+Final aggregated risk score
+
+Final secure prompt
+
+🔶 3. Deterministic, Secure Code Generation
+
+NestAI produces:
+
+Input validation
+
+Password hashing (bcrypt/argon2 in templates)
+
+Rate limiting
+
+TLS-enforcement placeholders
+
+RBAC and deny-by-default access control
+
+Secure audit logging
+
+Secret vault integration
+
+Every run produces a hardened, readable .py file under:
+
+~/.nestai/generated/
+
+🔶 4. Complete Audit & History System
+
+Every pipeline run generates a JSON-safe audit entry:
+
+Original prompt
+
+Final secure prompt
+
+Red Team results
+
+Static Analysis results
+
+Attack Simulation results
+
+Code path
+
+Timestamp
+
+History is stored under:
+
+~/.nestai/history/history_<timestamp>.json
+
+
+Then you can run:
+
+nestai history
+
+
+Or view details:
+
+nestai history show <id>
+
+🏗️ Architecture Overview
+High-Level Flow (Text Diagram)
+ ┌──────────────────────────┐
+ │        User Prompt        │
+ └──────────────┬───────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │   Static Analysis ①   │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │     Red Team ②        │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │     Blue Team ③       │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │ Controller Aggregator │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │   Final Secure Prompt │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │     Codegen Engine    │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │   Attack Simulation   │
+      └───────────────────────┘
+                │
+                ▼
+      ┌───────────────────────┐
+      │  Save Audit + Output  │
+      └───────────────────────┘
+
+📦 Installation
+git clone <repo>
+cd nestai_cli_project
+python3 -m venv new_env
+source new_env/bin/activate
+pip install -r requirements.txt
+pip install -e .
+
+▶️ Usage
+Basic usage:
+nestai "build a secure login api"
+
+Show history:
+nestai history
+
+View a single entry:
+nestai history show <id>
+
+Generate an HTML report:
+nestai report html
+
+🧪 Example Output (Shortened)
+STATIC ANALYSIS      MEDIUM
+RED TEAM             HIGH (injection, crypto)
+ATTACK SIMULATION    HIGH
+FINAL PROMPT         (secure aggregated prompt…)
+
+Generated code saved to:
+~/.nestai/generated/generated_20251120_183422.py
+
+📁 Project Structure
+nestai/
+  ├── audit.py
+  ├── cli.py
+  ├── config_cli.py
+  ├── history_cli.py
+  ├── controller.py
+  ├── static_analysis.py
+  ├── attack_simulation.py
+  ├── red_team.py
+  ├── blue_team.py
+  ├── codegen.py
+
+🛡️ Security Philosophy
+
+NestAI enforces:
+
+OWASP ASVS
+
+OWASP API Security Top 10
+
+NIST 800-53
+
+MITRE ATT&CK mappings
+
+Every generated code snippet is deterministic, safe-by-default, and hardened — designed to make AI-generated code actually secure.
+
+📝 Future Enhancements
+
+Plugin system for custom enterprise agents
+
+Live security scoring dashboard
+
+Static analysis using real Bandit/Semgrep subprocesses
+
+OpenAI / Anthropic API optional enhancer mode
+
+VSCode extension for inline secure codegen
+
+🤝 Contributors
