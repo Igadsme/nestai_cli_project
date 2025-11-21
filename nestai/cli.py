@@ -345,13 +345,24 @@ def print_static(console: Console, static_prompt: Any, static_gen: Any) -> None:
 def print_attack(console: Console, attack_result: Any) -> None:
     console.print(Rule("[bold magenta]Attack Simulation[/bold magenta]"))
 
+    # Handle missing or None attack_result safely
+    if not attack_result:
+        header = Text("attack_simulation", style="bold white")
+        header.append(" ")
+        header.append(risk_badge("unknown"))
+        console.print(Panel.fit(header, border_style="magenta", box=box.ROUNDED))
+        console.print("[yellow]No attack simulation data available.[/yellow]\n")
+        return
+
+    # Make safe for serialization
     a = _safe_agent(attack_result)
-    parsed = a.get("parsed", {})
+    parsed = a.get("parsed", {}) or {}
+
     severity = parsed.get("severity", "unknown")
     weak_points = parsed.get("weak_points", [])
 
     header = Text("attack_simulation", style="bold white")
-    header.append("  ")
+    header.append(" ")
     header.append(risk_badge(severity))
 
     console.print(Panel.fit(header, border_style="magenta", box=box.ROUNDED))
@@ -359,9 +370,10 @@ def print_attack(console: Console, attack_result: Any) -> None:
     if weak_points:
         console.print("  [bold]Weak Points:[/bold]")
         for w in weak_points:
-            console.print(f"   • {w}")
+            console.print(f"    • {w}")
 
     console.print()
+
 
 
 # ────────────────────────────────────────────────────────────────
