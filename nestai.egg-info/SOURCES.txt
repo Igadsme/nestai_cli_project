@@ -13,6 +13,8 @@ nestai/history_cli.py
 nestai/main_pipeline.py
 nestai/models.py
 nestai/red_team.py
+nestai/report_cli.py
+nestai/shared_paths.py
 nestai/static_analysis.py
 nestai.egg-info/PKG-INFO
 nestai.egg-info/SOURCES.txt
