@@ -1,213 +1,192 @@
-🛡️ NestAI – Secure Coding Pipeline
+NestAI – Multi-Agent Adversarial Security Framework for AI-Assisted Development
 
-Multi-Agent Security System for Generating Safe, Production-Grade Code Automatically
+NestAI is an open-source, adversarial AI security framework designed to validate, harden, and secure developer prompts before they are fed into an AI code generator.
+Built in under 48 hours for the KSU AI Club Fall 2025 Hackathon, NestAI won 2nd Place in the AI for Secure Code Generation track for its technical innovation, defense-in-depth architecture, and real-world developer usability.
 
-NestAI is an AI-powered, multi-agent secure coding pipeline that analyzes user prompts, detects security risks, enforces best practices, generates hardened code, and stores complete audit history — all inside an elegant CLI experience.
+NestAI is fully functional, open source, and ready to run locally in any IDE terminal.
+The only requirement is providing your own OpenAI API key during setup.
 
-Built for hackathons, developers, and companies that need security-first code generation.
+Key Features
 
-🚀 Key Features
-🔶 1. Multi-Agent Security Architecture
+Safety Gateway
+Multi-layer pre-processing and threat screening before code generation.
 
-Each request passes through a coordinated set of agents:
+6-Agent Red Team Engine
+Adversarial fuzzing, exploit probing, logic-path manipulation, RBAC checks, injection detection, cryptography analysis, and API misuse detection.
 
-Agent	Purpose
-Red Team Agents	Attack the prompt, identify vulnerabilities, propose constraints
-Blue Team Agents	Defend, reinforce constraints, apply security policies
-Static Analysis Agent	Runs Bandit/Semgrep-style analysis (prompt + code)
-Attack Simulation Agent	Simulates exploit attempts and classifies severity
-Malicious Intent Agent	Detects misuse, blocks dangerous prompts
-Controller Agent	Aggregates constraints and builds a secure final prompt
-Codegen Agent	Generates deterministic, production-grade secure code
-🔶 2. Auto-Expanded, Industry-Grade Findings
+5-Agent Blue Team Engine
+Secure rewrites, strengthened constraints, pattern remediation, and generation of hardened output prompts.
 
-All findings are printed automatically, zero keypresses required:
+Static + Pattern-Based Analysis
+Scans for insecure patterns, weak auth flows, misconfigurations, and OWASP-aligned security gaps.
 
-Full Red Team findings per category (auth, rbac, injection, crypto, logic, API, malicious intent)
+Iterative Risk–Tradeoff Refinement
+Developers can accept, modify, or reject risk tradeoffs with full control over constraints.
 
-Static analysis panels:
+Developer-First CLI Orchestrator
+Run NestAI with a single command from any IDE terminal for fast, secure, production-ready results.
 
-Prompt Static Analysis
+Architecture Flowchart
 
-Generated Code Static Analysis
+Below is the full frontend + backend process flow diagram for NestAI:
 
-Attack Simulation with severity scoring
+<br>
 
-Final aggregated risk score
+![NestAI Architecture Flowchart](/mnt/data/NESTAIFINAL.drawio (1).png)
 
-Final secure prompt
+<br>
+Installation & Setup
 
-🔶 3. Deterministic, Secure Code Generation
+NestAI can be run locally in any IDE (VS Code, PyCharm, Cursor, IntelliJ, Sublime, Fleet, etc.) using your terminal.
 
-NestAI produces:
-
-Input validation
-
-Password hashing (bcrypt/argon2 in templates)
-
-Rate limiting
-
-TLS-enforcement placeholders
-
-RBAC and deny-by-default access control
-
-Secure audit logging
-
-Secret vault integration
-
-Every run produces a hardened, readable .py file under:
-
-~/.nestai/generated/
-
-🔶 4. Complete Audit & History System
-
-Every pipeline run generates a JSON-safe audit entry:
-
-Original prompt
-
-Final secure prompt
-
-Red Team results
-
-Static Analysis results
-
-Attack Simulation results
-
-Code path
-
-Timestamp
-
-History is stored under:
-
-~/.nestai/history/history_<timestamp>.json
-
-
-Then you can run:
-
-nestai history
-
-
-Or view details:
-
-nestai history show <id>
-
-🏗️ Architecture Overview
-High-Level Flow (Text Diagram)
- ┌──────────────────────────┐
- │        User Prompt        │
- └──────────────┬───────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │   Static Analysis ①   │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │     Red Team ②        │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │     Blue Team ③       │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │ Controller Aggregator │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │   Final Secure Prompt │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │     Codegen Engine    │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │   Attack Simulation   │
-      └───────────────────────┘
-                │
-                ▼
-      ┌───────────────────────┐
-      │  Save Audit + Output  │
-      └───────────────────────┘
-
-📦 Installation
-git clone <repo>
+1. Clone the Repository
+git clone https://github.com/Igadsme/nestai_cli_project
 cd nestai_cli_project
-python3 -m venv new_env
-source new_env/bin/activate
+
+2. Create a Virtual Environment
+python3 -m venv venv
+
+
+Activate it:
+
+macOS/Linux
+
+source venv/bin/activate
+
+
+Windows
+
+venv\Scripts\activate
+
+3. Install Dependencies
+
+NestAI uses a standard requirements file.
+
 pip install -r requirements.txt
-pip install -e .
 
-Export an API key on you machine: export OPENAI_API_KEY="your-api-key-here"
-Verify it: echo $OPENAI_API_KEY
+4. Add Your API Key
 
-Then run the pipeline below
-▶️ Usage
-Basic usage:
-nestai "build a secure login api"
+NestAI currently requires an API key for LLM accuracy (during hackathon timeframe).
 
-Show history:
+Create a .env file in the project root:
+
+OPENAI_API_KEY=your_key_here
+
+
+Or export it in your terminal:
+
+macOS/Linux
+
+export OPENAI_API_KEY="your_key_here"
+
+
+Windows (PowerShell)
+
+setx OPENAI_API_KEY "your_key_here"
+
+Running NestAI (Any IDE Terminal)
+
+After installation:
+
+Basic usage
+nestai run "Generate a secure login API"
+
+
+Or using Python directly:
+
+python -m nestai.cli run "Generate a secure login API"
+
+View History
 nestai history
 
-View a single entry:
-nestai history show <id>
+Run in Debug Mode
+nestai run --debug "Create a secure FastAPI backend"
 
-Generate an HTML report:
-nestai report html
+How NestAI Works
+1. Frontend Pipeline
 
-🧪 Example Output (Shortened)
-STATIC ANALYSIS      MEDIUM
-RED TEAM             HIGH (injection, crypto)
-ATTACK SIMULATION    HIGH
-FINAL PROMPT         (secure aggregated prompt…)
+Accepts user prompt
 
-Generated code saved to:
-~/.nestai/generated/generated_20251120_183422.py
+Detects malicious intent
 
-📁 Project Structure
-nestai/
-  ├── audit.py
-  ├── cli.py
-  ├── config_cli.py
-  ├── history_cli.py
-  ├── controller.py
-  ├── static_analysis.py
-  ├── attack_simulation.py
-  ├── red_team.py
-  ├── blue_team.py
-  ├── codegen.py
+Performs history queries
 
-🛡️ Security Philosophy
+Outputs tradeoffs
 
-NestAI enforces:
+Allows user to approve, reject, or iterate
 
-OWASP ASVS
+Sends validated prompt to backend
 
-OWASP API Security Top 10
+2. Backend Pipeline
 
-NIST 800-53
+A. Controller Agent
+Routes prompt to Red Team, Blue Team, History System, or Gatekeeper.
 
-MITRE ATT&CK mappings
+B. Red Team Agents (1–6)
+Each agent performs specialized adversarial analysis:
 
-Every generated code snippet is deterministic, safe-by-default, and hardened — designed to make AI-generated code actually secure.
+Authorization
 
-📝 Future Enhancements
+RBAC
 
-Plugin system for custom enterprise agents
+Injection
 
-Live security scoring dashboard
+Cryptography
 
-Static analysis using real Bandit/Semgrep subprocesses
+Logic
 
-OpenAI / Anthropic API optional enhancer mode
+API misuse
 
-VSCode extension for inline secure codegen
+C. Blue Team Agents (1–5)
+Each produces a hardened version of the prompt with remediation.
 
-🤝 Contributors
+D. Controller Agent Merges Results
+Returns a final secure, production-ready prompt.
+
+E. Iteration Loop
+User decides to iterate or finish.
+
+The entire workflow is represented in the flowchart above.
+
+Roadmap
+In Progress
+
+Training our own local ML model to remove dependency on external API keys
+
+Adding automated test suites
+
+Expanding the Blue Team rewrites
+
+Integrating sandboxed exploit simulation
+
+Packaging NestAI as pip install nestai
+
+Future Goals
+
+VS Code + Cursor extension
+
+Threat profile analytics dashboard
+
+Model-agnostic security plugin
+
+Enterprise-grade audit ledger
+
+Contributors
+
+Lead Developer:
+Imani Gad (@Igadsme)
+
+Team Members:
+
+Adam Burkey
+
+Connor Curry
+
+Olaoluwa Omodemi
+
+Built during the KSU AI Club Fall 2025 Hackathon.
+
+License
+
+MIT License
+Feel free to use, modify, and build on NestAI.
