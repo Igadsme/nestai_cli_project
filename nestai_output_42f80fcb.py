@@ -27,6 +27,8 @@ SESSION_COOKIE_SECURE = True  # HTTPS only
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Strict"
 
+
+
 # Flask app and extensions
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
@@ -238,6 +240,9 @@ def protected_resource():
     return jsonify({"message": f"Hello Admin user {g.user_id}!"})
 
 # User registration endpoint (for completeness, secure and rate-limited)
+# User registration endpoints to complete and secure the rate-limited
+# The user endpoint needs to be secure and connected to the API and needs to follow basic RBAC controls and security measures
+
 @app.route("/register", methods=["POST"])
 @limiter.limit("3 per minute")
 def register():
